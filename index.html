@@ -1,100 +1,285 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>TSI Local Signature Viewer</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 2em; }
-    .signature {
-      border: 1px solid #ccc;
-      padding: 1em;
-      margin: 1em 0;
-    }
-    input, button {
-      padding: 8px;
-      margin-top: 10px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TSI Signature Generator</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f10;
+    --surface: #18181b;
+    --border: #2a2a2f;
+    --text: #f1ffff;
+    --muted: #9ca3af;
+    --accent: #1d9bf0;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+  header { padding: 32px 24px 16px; max-width: 1100px; margin: 0 auto; }
+  header h1 { font-family: var(--mono); font-weight: 500; font-size: 18px; margin: 0 0 6px; letter-spacing: 0.02em; }
+  header p { color: var(--muted); margin: 0; font-size: 14px; }
+  header a { color: var(--accent); text-decoration: none; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 24px 24px; max-width: 1100px; margin: 0 auto; }
+  .controls label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .controls input[type=search], .controls select {
+    background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font-family: var(--mono); font-size: 13px;
+  }
+  .controls input[type=search] { min-width: 220px; }
+  #status { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
+  #fallback { display: none; padding: 0 24px 24px; max-width: 1100px; margin: 0 auto; font-size: 14px; color: var(--muted); }
+  #fallback.show { display: block; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 16px; padding: 0 24px 48px; max-width: 1100px; margin: 0 auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .card .preview { background: #fff; padding: 20px; overflow-x: auto; }
+  .card .bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+  .card .who { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button {
+    background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 12px; font-family: var(--mono); font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:hover { border-color: var(--accent); }
+  button.done { background: #22c55e; border-color: #22c55e; color: #fff; }
+  @media (max-width: 520px) { #grid { grid-template-columns: 1fr; padding: 0 16px 32px; } header, .controls, #fallback { padding-left: 16px; padding-right: 16px; } }
+</style>
 </head>
 <body>
 
-<h2>TSI Signature Generator (Local CSV)</h2>
+<header>
+  <h1>TSI Signature Generator</h1>
+  <p>Find your card, hit <strong>Copy signature</strong>, then paste into Gmail: Settings → See all settings → General → Signature. Data is pulled live from the <a id="sheetLink" href="#" target="_blank" rel="noopener">exec directory sheet</a>.</p>
+</header>
 
-<p>Select <code>directory.csv</code> (with name, role, phone, email):</p>
-<input type="file" id="csvInput" accept=".csv" />
-<button onclick="generateSignatures()">Generate Signatures</button>
+<div class="controls">
+  <input type="search" id="search" placeholder="search name or role">
+  <label>email
+    <select id="emailSource">
+      <option value="Preferred Email">preferred</option>
+      <option value="UWO/Ivey Email">uwo / ivey</option>
+    </select>
+  </label>
+  <span id="status">loading…</span>
+</div>
 
-<div id="output"></div>
+<div id="fallback">
+  Could not load the sheet (it may be private). Download it as CSV and load it here:
+  <input type="file" id="csvInput" accept=".csv">
+</div>
+
+<div id="grid"></div>
 
 <script>
-function splitCSVLine(line) {
-  const result = [];
-  let current = '', insideQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"' && line[i + 1] === '"') {
-      current += '"'; i++;
-    } else if (char === '"') {
-      insideQuotes = !insideQuotes;
-    } else if (char === ',' && !insideQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
+const CONFIG = {
+  sheetId: '1fN1lbPREbEYDsZ4QgfDHjRHSw0qcJccI2RrO5ggzTXY',
+  gid: '0',
+  logoUrl: 'https://uwo-tsi.github.io/tsi-signature-generator/logo.png',
+  org: 'Tethos Student Initiative',
+  chapter: 'Western University',
+  site: 'tethos.ca',
+  siteUrl: 'https://tethos.ca',
+};
+
+const ROLE_LABELS = {
+  'PM': 'Project Manager',
+};
+
+const COLS = {
+  name: 'Name',
+  role: 'Role',
+  phone: 'Phone',
+  linkedin: 'LinkedIn',
+};
+
+let people = [];
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
   }
-  result.push(current.trim());
-  return result;
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  const header = rows.shift().map(h => h.trim());
+  return rows
+    .filter(r => r.some(v => v.trim()))
+    .map(r => Object.fromEntries(header.map((h, i) => [h, (r[i] || '').trim()])));
 }
 
-async function generateSignatures() {
-  const fileInput = document.getElementById('csvInput');
-  const file = fileInput.files[0];
-  if (!file) return alert("Please select your directory.csv file.");
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
-  const text = await file.text();
-  const lines = text.trim().split('\n');
-  const output = document.getElementById('output');
-  output.innerHTML = '';
+function formatPhone(raw) {
+  let d = (raw || '').replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '1') d = d.slice(1);
+  if (d.length !== 10) return { display: (raw || '').trim(), href: '' };
+  return { display: `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`, href: `tel:+1${d}` };
+}
 
-  for (let i = 0; i < lines.length; i++) {
-    const cols = splitCSVLine(lines[i]);
-    if (cols.length < 8) continue;
+function normalizeUrl(raw) {
+  const v = (raw || '').trim();
+  if (!/^https?:\/\//i.test(v)) return '';
+  return v.replace(/^http:/i, 'https:').replace(/\/+$/, '');
+}
 
-    const name = cols[0];
-    const role = cols[1];
-    const phone = cols[6];
-    const email = cols[7];
+function roleLabel(role) {
+  const r = (role || '').trim();
+  return ROLE_LABELS[r] || r;
+}
 
-    const html = `
-    <div style="font-family: sans-serif; font-size: 10px; color: #000; line-height: 1.1;">
-        <table>
-        <tr>
-            <td style="padding-right: 15px;">
-            <img src="https://raw.githubusercontent.com/UWO-TSI/TSI_Signature_Gen/main/tsilogo.jpg" 
-            alt="TSI Logo" width="80">
-            </td>
-            <td>
-            <strong style="font-size: 12px;">${name}</strong><br>
-            <span style="font-style: italic; font-size: 11px; color: #78b8c0;">${role} @ TSI</span><br>
-            <a href="mailto:${email}" style="font-style: italic; font-size: 11px; color: #78b8c0; text-decoration: none;">${email}</a> 
-            <span style="font-style: italic; font-size: 11px; color: #78b8c0;"> | ${phone}</span>
-            </td>
-        </tr>
-        </table>
-        <hr style="margin: 8px 0; border: none; border-top: 1px solid #78b8c0;">
-    </div>
-    `;
+function buildSignature(p, logoSrc) {
+  const mono = "'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+  const sans = "Helvetica,Arial,sans-serif";
+  const phone = formatPhone(p.phone);
+  const contact = [];
+  if (p.email) contact.push(`<a href="mailto:${esc(p.email)}" style="color:#1d9bf0;text-decoration:none;">${esc(p.email)}</a>`);
+  if (phone.display) contact.push(phone.href
+    ? `<a href="${phone.href}" style="color:#1a1a2e;text-decoration:none;">${esc(phone.display)}</a>`
+    : `<span style="color:#1a1a2e;">${esc(phone.display)}</span>`);
+  const links = [`<a href="${CONFIG.siteUrl}" style="color:#1d9bf0;text-decoration:none;">${CONFIG.site}</a>`];
+  if (p.linkedin) links.push(`<a href="${esc(p.linkedin)}" style="color:#1d9bf0;text-decoration:none;">LinkedIn</a>`);
+  const sep = `<span style="color:#9999aa;">&nbsp;&middot;&nbsp;</span>`;
 
+  return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:${sans};color:#1a1a2e;">
+<tr>
+<td style="vertical-align:top;padding:2px 14px 0 0;">
+<a href="${CONFIG.siteUrl}" style="text-decoration:none;"><img src="${logoSrc}" width="56" height="56" alt="Tethos" style="display:block;width:56px;height:56px;border:0;"></a>
+</td>
+<td style="vertical-align:top;border-left:1px solid #d6d6de;padding:0 0 0 14px;">
+<div style="font-family:${sans};font-size:15px;font-weight:700;color:#0a0a0b;line-height:20px;">${esc(p.name)}</div>
+<div style="font-family:${mono};font-size:12px;color:#1a1a2e;line-height:18px;">${esc(p.role)}&nbsp;&middot;&nbsp;${esc(CONFIG.org)}</div>
+<div style="font-family:${mono};font-size:12px;color:#666680;line-height:18px;">${esc(CONFIG.chapter)}</div>
+<div style="font-family:${sans};font-size:12px;line-height:18px;padding-top:6px;">${contact.join(sep)}</div>
+<div style="font-family:${sans};font-size:12px;line-height:18px;">${links.join(sep)}</div>
+</td>
+</tr>
+</table>`;
+}
 
+function toPeople(rows) {
+  const emailCol = document.getElementById('emailSource').value;
+  return rows
+    .filter(r => r[COLS.name])
+    .map(r => ({
+      name: r[COLS.name].replace(/\s+/g, ' ').trim(),
+      role: roleLabel(r[COLS.role]),
+      phone: r[COLS.phone],
+      email: (r[emailCol] || r['Preferred Email'] || '').trim(),
+      linkedin: normalizeUrl(r[COLS.linkedin]),
+    }));
+}
 
+function render() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const shown = people.filter(p => !q || `${p.name} ${p.role}`.toLowerCase().includes(q));
+  for (const p of shown) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const preview = document.createElement('div');
+    preview.className = 'preview';
+    preview.innerHTML = buildSignature(p, 'logo.png');
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = `${p.name} · ${p.role}`;
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'primary';
+    copyBtn.textContent = 'Copy signature';
+    copyBtn.onclick = () => copyRich(p, preview, copyBtn);
+    const htmlBtn = document.createElement('button');
+    htmlBtn.textContent = 'Copy HTML';
+    htmlBtn.onclick = () => copyText(buildSignature(p, CONFIG.logoUrl), htmlBtn);
+    bar.append(who, copyBtn, htmlBtn);
+    card.append(preview, bar);
+    grid.appendChild(card);
+  }
+  document.getElementById('status').textContent = `${shown.length} / ${people.length} execs`;
+}
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'signature';
-    wrapper.innerHTML = html;
-    output.appendChild(wrapper);
+function flash(btn, label) {
+  const orig = btn.textContent;
+  btn.textContent = label;
+  btn.classList.add('done');
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove('done'); }, 1400);
+}
+
+async function copyRich(p, previewEl, btn) {
+  const html = buildSignature(p, CONFIG.logoUrl);
+  const plain = previewEl.innerText;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([plain], { type: 'text/plain' }),
+    })]);
+    flash(btn, 'Copied');
+  } catch (e) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    tmp.style.position = 'fixed'; tmp.style.left = '-9999px';
+    document.body.appendChild(tmp);
+    const range = document.createRange();
+    range.selectNodeContents(tmp);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    const ok = document.execCommand('copy');
+    sel.removeAllRanges();
+    tmp.remove();
+    flash(btn, ok ? 'Copied' : 'Failed');
   }
 }
+
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); flash(btn, 'Copied'); }
+  catch (e) { flash(btn, 'Failed'); }
+}
+
+let rawRows = [];
+
+function load(rows) {
+  rawRows = rows;
+  people = toPeople(rawRows);
+  render();
+}
+
+async function fetchSheet() {
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${CONFIG.gid}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return parseCSV(await res.text());
+}
+
+document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/edit?gid=${CONFIG.gid}`;
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('emailSource').addEventListener('change', () => load(rawRows));
+document.getElementById('csvInput').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (f) load(parseCSV(await f.text()));
+});
+
+fetchSheet().then(load).catch(err => {
+  document.getElementById('status').textContent = `sheet load failed: ${err.message}`;
+  document.getElementById('fallback').classList.add('show');
+});
 </script>
 
 </body>

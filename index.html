@@ -64,6 +64,12 @@
       <option value="UWO/Ivey Email">uwo / ivey</option>
     </select>
   </label>
+  <label>color
+    <select id="theme">
+      <option value="ink">ink</option>
+      <option value="blue">blue</option>
+    </select>
+  </label>
   <span id="status">loading…</span>
 </div>
 
@@ -78,12 +84,20 @@
 const CONFIG = {
   sheetId: '1fN1lbPREbEYDsZ4QgfDHjRHSw0qcJccI2RrO5ggzTXY',
   gid: '0',
-  logoUrl: 'https://uwo-tsi.github.io/tsi-signature-generator/logo.png',
+  baseUrl: 'https://uwo-tsi.github.io/tsi-signature-generator/',
   org: 'Tethos Student Initiative',
   chapter: 'Western University',
   site: 'tethos.ca',
   siteUrl: 'https://tethos.ca',
 };
+
+const THEMES = {
+  ink:  { link: '#3a3a44', logo: 'logo.png' },
+  blue: { link: '#1d9bf0', logo: 'logo-blue.png' },
+};
+
+function theme() { return THEMES[document.getElementById('theme').value] || THEMES.ink; }
+function logoFor(t, absolute) { return (absolute ? CONFIG.baseUrl : '') + t.logo; }
 
 const ROLE_LABELS = {
   'PM': 'Project Manager',
@@ -144,10 +158,10 @@ function roleLabel(role) {
   return ROLE_LABELS[r] || r;
 }
 
-function buildSignature(p, logoSrc) {
+function buildSignature(p, t, logoSrc) {
   const font = "'Helvetica Neue',Helvetica,Arial,sans-serif";
   const ink = '#111114', body = '#3a3a44', muted = '#7a7a85', hair = '#e4e4e8', dot = '#b8b8c0';
-  const link = (href, text) => `<a href="${href}" style="color:${body};text-decoration:none;">${text}</a>`;
+  const link = (href, text) => `<a href="${href}" style="color:${t.link};text-decoration:none;">${text}</a>`;
   const sep = `<span style="color:${dot};">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>`;
   const phone = formatPhone(p.phone);
   const contact = [];
@@ -195,7 +209,8 @@ function render() {
     card.className = 'card';
     const preview = document.createElement('div');
     preview.className = 'preview';
-    preview.innerHTML = buildSignature(p, 'logo.png');
+    const t = theme();
+    preview.innerHTML = buildSignature(p, t, logoFor(t, false));
     const bar = document.createElement('div');
     bar.className = 'bar';
     const who = document.createElement('span');
@@ -207,7 +222,7 @@ function render() {
     copyBtn.onclick = () => copyRich(p, preview, copyBtn);
     const htmlBtn = document.createElement('button');
     htmlBtn.textContent = 'Copy HTML';
-    htmlBtn.onclick = () => copyText(buildSignature(p, CONFIG.logoUrl), htmlBtn);
+    htmlBtn.onclick = () => copyText(buildSignature(p, theme(), logoFor(theme(), true)), htmlBtn);
     bar.append(who, copyBtn, htmlBtn);
     card.append(preview, bar);
     grid.appendChild(card);
@@ -223,7 +238,8 @@ function flash(btn, label) {
 }
 
 async function copyRich(p, previewEl, btn) {
-  const html = buildSignature(p, CONFIG.logoUrl);
+  const t = theme();
+  const html = buildSignature(p, t, logoFor(t, true));
   const plain = previewEl.innerText;
   try {
     await navigator.clipboard.write([new ClipboardItem({
@@ -270,6 +286,7 @@ async function fetchSheet() {
 document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/edit?gid=${CONFIG.gid}`;
 document.getElementById('search').addEventListener('input', render);
 document.getElementById('emailSource').addEventListener('change', () => load(rawRows));
+document.getElementById('theme').addEventListener('change', render);
 document.getElementById('csvInput').addEventListener('change', async e => {
   const f = e.target.files[0];
   if (f) load(parseCSV(await f.text()));

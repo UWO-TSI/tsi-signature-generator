@@ -1,6 +1,6 @@
 # tsi-signature-generator
 
-Email signature generator for Tethos Student Initiative execs.
+Email signature generator for Tech for Social Impact (TSI) execs.
 
 Live: https://uwo-tsi.github.io/tsi-signature-generator/
 
@@ -10,7 +10,7 @@ Live: https://uwo-tsi.github.io/tsi-signature-generator/
 2. Find your card, click **Copy signature**.
 3. Gmail: Settings → See all settings → General → Signature → Create new → paste → Save.
 
-The `email` dropdown switches between your preferred email and your UWO/Ivey email. The `color` dropdown switches between ink (default) and brand blue for the mark and links.
+The `email` dropdown switches between your UWO/Ivey email (default) and your preferred email. The `color` dropdown switches between ink (default) and brand blue for the mark and links.
 
 ## How it works
 

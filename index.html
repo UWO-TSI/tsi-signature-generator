@@ -36,7 +36,7 @@
   #fallback.show { display: block; }
   #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 16px; padding: 0 24px 48px; max-width: 1100px; margin: 0 auto; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .card .preview { background: #fff; padding: 20px; overflow-x: auto; }
+  .card .preview { background: #fff; padding: 24px; overflow-x: auto; }
   .card .bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
   .card .who { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   button {
@@ -145,29 +145,28 @@ function roleLabel(role) {
 }
 
 function buildSignature(p, logoSrc) {
-  const mono = "'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
-  const sans = "Helvetica,Arial,sans-serif";
+  const font = "'Helvetica Neue',Helvetica,Arial,sans-serif";
+  const ink = '#111114', body = '#3a3a44', muted = '#7a7a85', hair = '#e4e4e8', dot = '#b8b8c0';
+  const link = (href, text) => `<a href="${href}" style="color:${body};text-decoration:none;">${text}</a>`;
+  const sep = `<span style="color:${dot};">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>`;
   const phone = formatPhone(p.phone);
   const contact = [];
-  if (p.email) contact.push(`<a href="mailto:${esc(p.email)}" style="color:#1d9bf0;text-decoration:none;">${esc(p.email)}</a>`);
-  if (phone.display) contact.push(phone.href
-    ? `<a href="${phone.href}" style="color:#1a1a2e;text-decoration:none;">${esc(phone.display)}</a>`
-    : `<span style="color:#1a1a2e;">${esc(phone.display)}</span>`);
-  const links = [`<a href="${CONFIG.siteUrl}" style="color:#1d9bf0;text-decoration:none;">${CONFIG.site}</a>`];
-  if (p.linkedin) links.push(`<a href="${esc(p.linkedin)}" style="color:#1d9bf0;text-decoration:none;">LinkedIn</a>`);
-  const sep = `<span style="color:#9999aa;">&nbsp;&middot;&nbsp;</span>`;
+  if (p.email) contact.push(link(`mailto:${esc(p.email)}`, esc(p.email)));
+  if (phone.display) contact.push(phone.href ? link(phone.href, esc(phone.display)) : esc(phone.display));
+  const links = [link(CONFIG.siteUrl, CONFIG.site)];
+  if (p.linkedin) links.push(link(esc(p.linkedin), 'LinkedIn'));
 
-  return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:${sans};color:#1a1a2e;">
+  return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:${font};color:${body};">
 <tr>
-<td style="vertical-align:top;padding:2px 14px 0 0;">
-<a href="${CONFIG.siteUrl}" style="text-decoration:none;"><img src="${logoSrc}" width="56" height="56" alt="Tethos" style="display:block;width:56px;height:56px;border:0;"></a>
+<td style="vertical-align:top;padding:2px 16px 0 0;">
+<a href="${CONFIG.siteUrl}" style="text-decoration:none;"><img src="${logoSrc}" width="40" height="40" alt="Tethos" style="display:block;width:40px;height:40px;border:0;"></a>
 </td>
-<td style="vertical-align:top;border-left:1px solid #d6d6de;padding:0 0 0 14px;">
-<div style="font-family:${sans};font-size:15px;font-weight:700;color:#0a0a0b;line-height:20px;">${esc(p.name)}</div>
-<div style="font-family:${mono};font-size:12px;color:#1a1a2e;line-height:18px;">${esc(p.role)}&nbsp;&middot;&nbsp;${esc(CONFIG.org)}</div>
-<div style="font-family:${mono};font-size:12px;color:#666680;line-height:18px;">${esc(CONFIG.chapter)}</div>
-<div style="font-family:${sans};font-size:12px;line-height:18px;padding-top:6px;">${contact.join(sep)}</div>
-<div style="font-family:${sans};font-size:12px;line-height:18px;">${links.join(sep)}</div>
+<td style="vertical-align:top;border-left:1px solid ${hair};padding:0 0 0 16px;">
+<div style="font-family:${font};font-size:15px;font-weight:600;color:${ink};line-height:20px;letter-spacing:-0.01em;">${esc(p.name)}</div>
+<div style="font-family:${font};font-size:13px;color:${body};line-height:19px;">${esc(p.role)}, ${esc(CONFIG.org)}</div>
+<div style="font-family:${font};font-size:12px;color:${muted};line-height:18px;">${esc(CONFIG.chapter)}</div>
+<div style="font-family:${font};font-size:12px;line-height:18px;padding-top:10px;">${contact.join(sep)}</div>
+<div style="font-family:${font};font-size:12px;line-height:18px;">${links.join(sep)}</div>
 </td>
 </tr>
 </table>`;

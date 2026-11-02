@@ -31,6 +31,7 @@
     padding: 8px 10px; font-family: var(--mono); font-size: 13px;
   }
   .controls input[type=search] { min-width: 220px; }
+  .toggle { display: flex; gap: 6px; }
   #status { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
   #fallback { display: none; padding: 0 24px 24px; max-width: 1100px; margin: 0 auto; font-size: 14px; color: var(--muted); }
   #fallback.show { display: block; }
@@ -57,6 +58,10 @@
 </header>
 
 <div class="controls">
+  <div class="toggle" id="groupToggle" role="group" aria-label="team">
+    <button type="button" data-group="exec" class="primary" aria-pressed="true">execs</button>
+    <button type="button" data-group="team" aria-pressed="false">directors &amp; developers</button>
+  </div>
   <input type="search" id="search" placeholder="search name or role">
   <label>email
     <select id="emailSource">
@@ -115,6 +120,7 @@ const COLS = {
 };
 
 let people = [];
+let currentGroup = 'exec';
 
 function parseCSV(text) {
   const rows = [];
@@ -199,6 +205,7 @@ function toPeople(rows) {
     .filter(r => r[COLS.name])
     .map(r => ({
       name: r[COLS.name].replace(/\s+/g, ' ').trim(),
+      group: r[COLS.role] ? 'exec' : 'team',
       role: roleLabel(r),
       phone: r[COLS.role] ? r[COLS.phone] : '',
       email: (r[emailCol] || r['UWO Email'] || r['Preferred Email'] || '').trim(),
@@ -210,7 +217,8 @@ function render() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-  const shown = people.filter(p => !q || `${p.name} ${p.role}`.toLowerCase().includes(q));
+  const pool = people.filter(p => p.group === currentGroup);
+  const shown = pool.filter(p => !q || `${p.name} ${p.role}`.toLowerCase().includes(q));
   for (const p of shown) {
     const card = document.createElement('div');
     card.className = 'card';
@@ -234,7 +242,7 @@ function render() {
     card.append(preview, bar);
     grid.appendChild(card);
   }
-  document.getElementById('status').textContent = `${shown.length} / ${people.length} people`;
+  document.getElementById('status').textContent = `${shown.length} / ${pool.length} people`;
 }
 
 function flash(btn, label) {
@@ -296,6 +304,15 @@ document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheet
 document.getElementById('search').addEventListener('input', render);
 document.getElementById('emailSource').addEventListener('change', () => load(rawRows));
 document.getElementById('theme').addEventListener('change', render);
+const groupButtons = document.querySelectorAll('#groupToggle button');
+groupButtons.forEach(b => b.addEventListener('click', () => {
+  currentGroup = b.dataset.group;
+  groupButtons.forEach(x => {
+    x.classList.toggle('primary', x === b);
+    x.setAttribute('aria-pressed', x === b);
+  });
+  render();
+}));
 document.getElementById('csvInput').addEventListener('change', async e => {
   const f = e.target.files[0];
   if (f) load(parseCSV(await f.text()));

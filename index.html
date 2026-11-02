@@ -71,7 +71,6 @@
   </label>
   <label>color
     <select id="theme">
-      <option value="ink">ink</option>
       <option value="main">main blue</option>
       <option value="blue">light blue</option>
     </select>
@@ -98,12 +97,11 @@ const CONFIG = {
 };
 
 const THEMES = {
-  ink:  { link: '#3a3a44', logo: 'logo.png' },
   main: { link: '#002FA7', logo: 'logo-main-blue.png' },
   blue: { link: '#1d9bf0', logo: 'logo-blue.png' },
 };
 
-function theme() { return THEMES[document.getElementById('theme').value] || THEMES.ink; }
+function theme() { return THEMES[document.getElementById('theme').value] || THEMES.main; }
 function logoFor(t, absolute) { return (absolute ? CONFIG.baseUrl : '') + t.logo; }
 
 const ROLE_LABELS = {

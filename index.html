@@ -71,8 +71,8 @@
   </label>
   <label>color
     <select id="theme">
-      <option value="main">main blue</option>
       <option value="blue">light blue</option>
+      <option value="main">main blue</option>
     </select>
   </label>
   <span id="status">loading…</span>
@@ -101,7 +101,7 @@ const THEMES = {
   blue: { link: '#1d9bf0', logo: 'logo-blue.png' },
 };
 
-function theme() { return THEMES[document.getElementById('theme').value] || THEMES.main; }
+function theme() { return THEMES[document.getElementById('theme').value] || THEMES.blue; }
 function logoFor(t, absolute) { return (absolute ? CONFIG.baseUrl : '') + t.logo; }
 
 const ROLE_LABELS = {

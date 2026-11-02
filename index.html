@@ -53,7 +53,7 @@
 
 <header>
   <h1>TSI Signature Generator</h1>
-  <p>Find your card, hit <strong>Copy signature</strong>, then paste into Gmail: Settings → See all settings → General → Signature. Data is pulled live from the <a id="sheetLink" href="#" target="_blank" rel="noopener">exec directory sheet</a>.</p>
+  <p>Find your card, hit <strong>Copy signature</strong>, then paste into Gmail: Settings → See all settings → General → Signature. Data is pulled live from the <a id="sheetLink" href="#" target="_blank" rel="noopener">directory sheet</a>.</p>
 </header>
 
 <div class="controls">
@@ -84,7 +84,7 @@
 <script>
 const CONFIG = {
   sheetId: '1fN1lbPREbEYDsZ4QgfDHjRHSw0qcJccI2RrO5ggzTXY',
-  gid: '0',
+  gids: ['0', '441673743'],
   baseUrl: 'https://uwo-tsi.github.io/tsi-signature-generator/',
   org: 'Tech for Social Impact',
   chapter: 'Western University',
@@ -108,6 +108,8 @@ const ROLE_LABELS = {
 const COLS = {
   name: 'Name',
   role: 'Role',
+  position: 'Position (Director/Developer)',
+  portfolio: 'Project Team/Portfolio',
   phone: 'Phone',
   linkedin: 'LinkedIn',
 };
@@ -150,14 +152,17 @@ function formatPhone(raw) {
 }
 
 function normalizeUrl(raw) {
-  const v = (raw || '').trim();
+  let v = (raw || '').trim();
+  if (/^([a-z]+\.)?linkedin\.com\//i.test(v)) v = `https://${v}`;
   if (!/^https?:\/\//i.test(v)) return '';
   return v.replace(/^http:/i, 'https:').replace(/\/+$/, '');
 }
 
-function roleLabel(role) {
-  const r = (role || '').trim();
-  return ROLE_LABELS[r] || r;
+function roleLabel(row) {
+  const r = (row[COLS.role] || '').trim();
+  if (r) return ROLE_LABELS[r] || r;
+  const position = row[COLS.position] || '';
+  return position === 'Director' ? `${row[COLS.portfolio]} Director` : position;
 }
 
 function buildSignature(p, t, logoSrc) {
@@ -194,9 +199,9 @@ function toPeople(rows) {
     .filter(r => r[COLS.name])
     .map(r => ({
       name: r[COLS.name].replace(/\s+/g, ' ').trim(),
-      role: roleLabel(r[COLS.role]),
-      phone: r[COLS.phone],
-      email: (r[emailCol] || r['Preferred Email'] || '').trim(),
+      role: roleLabel(r),
+      phone: r[COLS.role] ? r[COLS.phone] : '',
+      email: (r[emailCol] || r['UWO Email'] || r['Preferred Email'] || '').trim(),
       linkedin: normalizeUrl(r[COLS.linkedin]),
     }));
 }
@@ -229,7 +234,7 @@ function render() {
     card.append(preview, bar);
     grid.appendChild(card);
   }
-  document.getElementById('status').textContent = `${shown.length} / ${people.length} execs`;
+  document.getElementById('status').textContent = `${shown.length} / ${people.length} people`;
 }
 
 function flash(btn, label) {
@@ -279,13 +284,15 @@ function load(rows) {
 }
 
 async function fetchSheet() {
-  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${CONFIG.gid}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return parseCSV(await res.text());
+  const tabs = await Promise.all(CONFIG.gids.map(async gid => {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${gid}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseCSV(await res.text());
+  }));
+  return tabs.flat();
 }
 
-document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/edit?gid=${CONFIG.gid}`;
+document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/edit?gid=${CONFIG.gids[0]}`;
 document.getElementById('search').addEventListener('input', render);
 document.getElementById('emailSource').addEventListener('change', () => load(rawRows));
 document.getElementById('theme').addEventListener('change', render);

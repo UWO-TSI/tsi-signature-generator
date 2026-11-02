@@ -7,7 +7,7 @@ Live: https://uwo-tsi.github.io/tsi-signature-generator/
 ## How to use
 
 1. Open the link above.
-2. Find your card, click **Copy signature**.
+2. Pick **execs** or **directors & developers**, find your card, click **Copy signature**.
 3. Gmail: Settings → See all settings → General → Signature → Create new → paste → Save.
 
 The `email` dropdown switches between your UWO/Ivey email (default) and your preferred email. The `color` dropdown switches the mark and links between ink (default), main blue (#002FA7) and light blue (#1d9bf0).

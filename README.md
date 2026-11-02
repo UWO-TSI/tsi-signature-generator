@@ -1,10 +1,10 @@
 # tsi-signature-generator
 
-Email signature generator for Tech for Social Impact (TSI) execs.
+Email signature generator for Tech for Social Impact (TSI) execs, directors and developers.
 
 Live: https://uwo-tsi.github.io/tsi-signature-generator/
 
-## For execs
+## How to use
 
 1. Open the link above.
 2. Find your card, click **Copy signature**.
@@ -14,7 +14,7 @@ The `email` dropdown switches between your UWO/Ivey email (default) and your pre
 
 ## How it works
 
-- `index.html` fetches the exec directory Google Sheet as CSV on page load (the sheet must be viewable by anyone with the link). If the fetch fails, a CSV file picker appears as a fallback.
-- Columns used: `Name`, `Role`, `Phone`, `Preferred Email`, `UWO/Ivey Email`, `LinkedIn`. LinkedIn only shows if the cell is a full URL.
+- `index.html` fetches both tabs of the directory Google Sheet (Executives, Directors/Developers) as CSV on page load (the sheet must be viewable by anyone with the link). If the fetch fails, a CSV file picker appears as a fallback.
+- Columns used: `Name`, `Role` (Executives) or `Position (Director/Developer)` and `Project Team/Portfolio` (Directors/Developers), `Phone`, `Preferred Email`, `UWO/Ivey Email` or `UWO Email`, `LinkedIn`. Directors show as `<Portfolio> Director`, developers as `Developer`. Phone only shows on Executives cards. LinkedIn only shows if the cell is a linkedin.com link or a full URL.
 - `logo.png` (ink), `logo-main-blue.png` (#002FA7) and `logo-blue.png` (#1d9bf0) are the mark, served from this repo via GitHub Pages and referenced by absolute URL in the copied signature.
-- Org name, chapter, sheet ID and base URL live in the `CONFIG` object at the top of the script in `index.html`; colors per variant live in `THEMES`.
+- Org name, chapter, sheet ID, tab gids and base URL live in the `CONFIG` object at the top of the script in `index.html`; colors per variant live in `THEMES`.
